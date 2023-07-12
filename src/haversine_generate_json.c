@@ -1,4 +1,4 @@
-#include "haversine.h"
+#include "haversine_generate_json.h"
 
 float EARTH_RADIUS_KM = 6371.0f;
 
@@ -36,17 +36,28 @@ static float write_haversine_json(char *file_path, int seed, int pairs_count)
     char *value_key[] = {"x0", "y0", "x1", "y1"};
     FILE *file = fopen(file_path, "wb");
     float average = 0.0f;
+    float offset = 0.0f, range = 0.0f;
     srand(seed);
     fprintf(file, "{\n    \"pairs\": [\n");
     for (i = 0; i < pairs_count; ++i)
     {
         float v[4];
-        fprintf(file, "        {");
-        for (j = 0; j < 4; ++j)
+        if (i % (pairs_count / 4) == 0)
         {
-            float random_value = random_float_between_zero_and(360.0f);
-            fprintf(file, "\"%s\":%f%s ", value_key[j], random_value, maybe_comma(j, 3));
-            v[j] = random_value;
+            offset = random_float_between_zero_and(180.0f);
+            range = random_float_between_zero_and(40.0f);
+        }
+        fprintf(file, "        {");
+        for (j = 0; j < 2; ++j)
+        {
+            float x = offset + random_float_between_zero_and(range);
+            float y = offset + random_float_between_zero_and(range);
+            if (x > 360.0f) x -= 360.0f;
+            if (y > 360.0f) y -= 360.0f;
+            v[j] = x;
+            v[j+1] = y;
+            fprintf(file, "\"%s\":%f%s ", value_key[j], x, maybe_comma(j, 3));
+            fprintf(file, "\"%s\":%f%s ", value_key[j+1], y, maybe_comma(j, 3));
         }
         fprintf(file, "}%s\n", maybe_comma(i, pairs_count - 1));
         float haversine = haversine_of_degrees(v[0], v[1], v[2], v[3], EARTH_RADIUS_KM);
@@ -55,15 +66,4 @@ static float write_haversine_json(char *file_path, int seed, int pairs_count)
     fprintf(file, "    ],\n    \"average\":%f\n}\n", average);
     fclose(file);
     return average;
-}
-
-int main(int arg_count, char **args)
-{
-    if (arg_count < 3) printf("Usage:\n    ./test.sh [random_seed] [number_of_pairs]\n");
-    int seed = atoi(args[1]);
-    int pairs_count = atoi(args[2]);
-    char *file_path = "../dist/haversine.json";
-    float average = write_haversine_json(file_path, seed, pairs_count);
-    printf("average %f", average);
-    return 0;
 }
