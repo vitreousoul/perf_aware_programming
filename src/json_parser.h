@@ -67,7 +67,7 @@ static Json_Buffer *read_file(char *file_path)
 }
 
 Json_Value *parse_json(char *file_path);
-Json_Value *parse_json_digit(Json_Buffer *source);
+Json_Value *parse_json_digit(Json_Buffer *buffer);
 
 static int min(int a, int b)
 {
@@ -75,14 +75,14 @@ static int min(int a, int b)
 }
 
 #define MAX_DIGIT_CHARACTERS 512
-Json_Value *parse_json_digit(Json_Buffer *source)
+Json_Value *parse_json_digit(Json_Buffer *buffer)
 {
-    int start = source->i, is_float = 0;
+    int start = buffer->i, is_float = 0;
     Json_Value *result = malloc(sizeof(Json_Value));
     char digit_characters[MAX_DIGIT_CHARACTERS] = {};
-    while(source->data[source->i])
+    while(buffer->data[buffer->i])
     {
-        char character = source->data[source->i];
+        char character = buffer->data[buffer->i];
         if(character == '.')
         {
             if(is_float)
@@ -96,11 +96,11 @@ Json_Value *parse_json_digit(Json_Buffer *source)
         {
             break;
         }
-        source->i++;
+        buffer->i++;
     }
-    int digit_length = min(source->i - start, MAX_DIGIT_CHARACTERS - 2);
-    memcpy(digit_characters, &source->data[start], digit_length);
-    digit_characters[source->i + digit_length] = 0;
+    int digit_length = min(buffer->i - start, MAX_DIGIT_CHARACTERS - 2);
+    memcpy(digit_characters, &buffer->data[start], digit_length);
+    digit_characters[buffer->i + digit_length] = 0;
     if (is_float)
     {
         result->kind = Json_Value_Kind_Float;
