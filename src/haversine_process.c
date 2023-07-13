@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #include "json_parser.h"
@@ -16,6 +17,7 @@ typedef enum
 static int string_match(char *string_a, char *string_b)
 {
     int i = 0, result = 1;
+    if (!string_a || !string_b) return 0;
     while(string_a[i] != 0 && string_b[i] != 0)
     {
         if (string_a[i] != string_b[i])
@@ -38,7 +40,7 @@ static void print_usage()
 
 int main(int arg_count, char **args)
 {
-    if (arg_count < 1)
+    if (arg_count < 2)
     {
         print_usage();
         return 1;
