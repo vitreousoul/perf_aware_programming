@@ -1,4 +1,7 @@
 #define IS_DIGIT(c) ((c) >= '0' && (c) <= '9')
+#define IS_SPACE(c) ((c) == ' ' || (c) == '\r' || (c) == '\t' || (c) == '\n')
+
+#define ARRAY_CHUNK_COUNT 1024
 
 typedef enum
 {
@@ -10,10 +13,25 @@ typedef enum
     Json_Value_Kind_Array,
 } Json_Value_Kind;
 
-struct Json_Array;
-struct Json_Object;
+typedef struct Json_Value Json_Value;
+typedef struct Json_Array Json_Array;
+
+struct Json_Array
+{
+    Json_Value *array[ARRAY_CHUNK_COUNT];
+    int used;
+    Json_Array *next;
+};
 
 typedef struct
+{
+    char *key[ARRAY_CHUNK_COUNT];
+    Json_Value *value[ARRAY_CHUNK_COUNT];
+    int used;
+    struct Json_Object *next;
+} Json_Object;
+
+struct Json_Value
 {
     Json_Value_Kind kind;
     union
@@ -24,28 +42,49 @@ typedef struct
         struct Json_Array *array;
         struct Json_Object *object;
     };
-} Json_Value;
-
-typedef struct
-{
-    Json_Value array[1024];
-    int size;
-    struct Json_Array *node;
-} Json_Array;
-
-typedef struct
-{
-    char *key[1024];
-    Json_Value value[1024];
-    int size;
-    struct Json_Object *node;
-} Json_Object;
+};
 
 typedef struct
 {
     char *data;
     size_t i;
 } Json_Buffer;
+
+
+
+Json_Value *parse_json(char *file_path);
+static Json_Value *parse_json_value(Json_Buffer *buffer);
+
+static Json_Array *create_json_array()
+{
+    Json_Array *result = malloc(sizeof(Json_Array));
+    memset(result, 0, sizeof(Json_Array));
+    return result;
+}
+
+static void json_array_push(Json_Array *array, Json_Value *value)
+{
+    printf("json_array_push %p %p\n", array, value);
+    if (!array) array = create_json_array();
+    while(1)
+    {
+        if (array->used >= ARRAY_CHUNK_COUNT)
+        {
+            if (!array->next)
+            {
+                array->next = create_json_array();
+            }
+            array = array->next;
+        }
+        else
+        {
+            printf("setting value\n");
+            array->array[array->used] = value;
+            array->used += 1;
+            break;
+        }
+    }
+}
 
 static Json_Buffer *read_file(char *file_path)
 {
@@ -66,11 +105,22 @@ static Json_Buffer *read_file(char *file_path)
     return buffer;
 }
 
-Json_Value *parse_json(char *file_path);
-
 static int min(int a, int b)
 {
     return a < b ? a : b;
+}
+
+static void chomp_space(Json_Buffer *buffer)
+{
+    while(1)
+    {
+        char character = buffer->data[buffer->i];
+        if (character == 0 || !IS_SPACE(character))
+        {
+            break;
+        }
+        buffer->i += 1;
+    }
 }
 
 #define MAX_DIGIT_CHARACTERS 512
@@ -115,6 +165,7 @@ static Json_Value *parse_json_digit(Json_Buffer *buffer)
 
 static Json_Value *parse_json_string(Json_Buffer *buffer)
 {
+    printf("parse_json_string\n");
     Json_Value *result = malloc(sizeof(Json_Value));
     buffer->i += 1; // we are on a quote character, so skip it
     size_t start = buffer->i;
@@ -132,15 +183,55 @@ static Json_Value *parse_json_string(Json_Buffer *buffer)
         buffer->i += 1;
     }
     size_t string_length = buffer->i - start;
+    buffer->i += 1; // skip over closing quote
     result->kind = Json_Value_Kind_String;
-    result->string = malloc(string_length);
+    result->string = malloc(string_length + 1);
     memcpy(result->string, &buffer->data[start], string_length);
+    result->string[string_length] = 0;
+    return result;
+}
+
+static Json_Value *parse_json_array(Json_Buffer *buffer)
+{
+    Json_Value *result = malloc(sizeof(Json_Value));
+    result->kind = Json_Value_Kind_Array;
+    buffer->i += 1; // skip over the open bracket
+    while(1)
+    {
+        chomp_space(buffer);
+        printf("ready to parse item for array\n");
+        Json_Value *item = parse_json_value(buffer);
+        if (!item)
+        {
+            printf("parse_json_array null item\n");
+            return 0;
+        }
+        json_array_push(result->array, item);
+        chomp_space(buffer);
+        printf("%c\n", buffer->data[buffer->i]);
+        if (buffer->data[buffer->i] == ',')
+        {
+            buffer->i += 1;
+            continue;
+        }
+        else if (buffer->data[buffer->i] == ']')
+        {
+            break;
+        }
+        else
+        {
+            printf("parse_json_array expected comma or close-bracket, but got '%c'\n", buffer->data[buffer->i]);
+            return 0;
+        }
+    }
     return result;
 }
 
 static Json_Value *parse_json_value(Json_Buffer *buffer)
 {
+    printf("parse_json_value\n");
     Json_Value *result = 0;
+    chomp_space(buffer);
     switch(buffer->data[buffer->i])
     {
     case '"':
@@ -151,8 +242,7 @@ static Json_Value *parse_json_value(Json_Buffer *buffer)
         return 0;
         break;
     case '[':
-        printf("parse_json array not implemented\n");
-        return 0;
+        result = parse_json_array(buffer);
         break;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
