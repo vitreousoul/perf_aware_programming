@@ -67,7 +67,6 @@ static Json_Buffer *read_file(char *file_path)
 }
 
 Json_Value *parse_json(char *file_path);
-Json_Value *parse_json_digit(Json_Buffer *buffer);
 
 static int min(int a, int b)
 {
@@ -75,7 +74,7 @@ static int min(int a, int b)
 }
 
 #define MAX_DIGIT_CHARACTERS 512
-Json_Value *parse_json_digit(Json_Buffer *buffer)
+static Json_Value *parse_json_digit(Json_Buffer *buffer)
 {
     int start = buffer->i, is_float = 0;
     Json_Value *result = malloc(sizeof(Json_Value));
@@ -114,14 +113,38 @@ Json_Value *parse_json_digit(Json_Buffer *buffer)
     return result;
 }
 
+static Json_Value *parse_json_string(Json_Buffer *buffer)
+{
+    Json_Value *result = malloc(sizeof(Json_Value));
+    buffer->i += 1; // we are on a quote character, so skip it
+    size_t start = buffer->i;
+    while(buffer->data[buffer->i])
+    {
+        char character = buffer->data[buffer->i];
+        if(character == '\\')
+        {
+            buffer->i += 1;
+        }
+        else if (character == '"')
+        {
+            break;
+        }
+        buffer->i += 1;
+    }
+    size_t string_length = buffer->i - start;
+    result->kind = Json_Value_Kind_String;
+    result->string = malloc(string_length);
+    memcpy(result->string, &buffer->data[start], string_length);
+    return result;
+}
+
 static Json_Value *parse_json_value(Json_Buffer *buffer)
 {
     Json_Value *result = 0;
     switch(buffer->data[buffer->i])
     {
     case '"':
-        printf("parse_json string not implemented\n");
-        return 0;
+        result = parse_json_string(buffer);
         break;
     case '{':
         printf("parse_json object not implemented\n");
@@ -133,9 +156,8 @@ static Json_Value *parse_json_value(Json_Buffer *buffer)
         break;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
-    {
         result = parse_json_digit(buffer);
-    } break;
+        break;
     default:
         printf("Error parsing json value, found '%c'", buffer->data[buffer->i]);
         return 0;
