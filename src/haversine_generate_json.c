@@ -50,14 +50,15 @@ static float write_haversine_json(char *file_path, int seed, int pairs_count)
         fprintf(file, "        {");
         for (j = 0; j < 2; ++j)
         {
+            int index = j * 2;
             float x = offset + random_float_between_zero_and(range);
             float y = offset + random_float_between_zero_and(range);
             if (x > 360.0f) x -= 360.0f;
             if (y > 360.0f) y -= 360.0f;
-            v[j] = x;
-            v[j+1] = y;
-            fprintf(file, "\"%s\":%f%s ", value_key[j], x, maybe_comma(j, 3));
-            fprintf(file, "\"%s\":%f%s ", value_key[j+1], y, maybe_comma(j, 3));
+            v[index] = x;
+            v[index+1] = y;
+            fprintf(file, "\"%s\":%f%s ", value_key[index], x, maybe_comma(index, 3));
+            fprintf(file, "\"%s\":%f%s ", value_key[index+1], y, maybe_comma(index+1, 3));
         }
         fprintf(file, "}%s\n", maybe_comma(i, pairs_count - 1));
         float haversine = haversine_of_degrees(v[0], v[1], v[2], v[3], EARTH_RADIUS_KM);
