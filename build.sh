@@ -2,7 +2,7 @@
 
 DEBUG=1
 SOURCE_FILES="src/haversine_process.c"
-SETTINGS="-std=c89 -Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wno-comment"
+SETTINGS="-std=c99 -Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wno-comment"
 OUTPUT_DIR="dist"
 
 if [ ! -d "$OUTPUT_DIR" ]; then

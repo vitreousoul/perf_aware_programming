@@ -4,8 +4,13 @@
 #include <string.h>
 #include <sys/stat.h>
 
+typedef uint64_t u64;
+typedef double f64;
+
 #include "json_parser.h"
 #include "haversine_generate_json.c"
+
+#include "prof.c"
 
 typedef enum
 {
@@ -13,6 +18,8 @@ typedef enum
     Haversine_Process_Mode_Generate,
     Haversine_Process_Mode_Process,
 } Haversine_Process_Mode;
+
+u64 timers[64];
 
 static int string_match(char *string_a, char *string_b)
 {
@@ -100,8 +107,44 @@ static float process_haversine_json(Json_Value *object)
     return result;
 }
 
+static int estimate_cpu_frequency()
+{
+    u64 MillisecondsToWait = 100;
+
+    u64 OSFreq = GetOSTimerFreq();
+
+    u64 CPUStart = ReadCPUTimer();
+    u64 OSStart = ReadOSTimer();
+    u64 OSEnd = 0;
+    u64 OSElapsed = 0;
+    u64 OSWaitTime = OSFreq * MillisecondsToWait / 1000;
+    while(OSElapsed < OSWaitTime)
+    {
+        OSEnd = ReadOSTimer();
+        OSElapsed = OSEnd - OSStart;
+    }
+
+    u64 CPUEnd = ReadCPUTimer();
+    u64 CPUElapsed = CPUEnd - CPUStart;
+    u64 CPUFreq = 0;
+    if(OSElapsed)
+    {
+        CPUFreq = OSFreq * CPUElapsed / OSElapsed;
+    }
+
+    /* printf("    OS Freq: %llu (reported)\n", OSFreq); */
+    /* printf("   OS Timer: %llu -> %llu = %llu elapsed\n", OSStart, OSEnd, OSElapsed); */
+    /* printf(" OS Seconds: %.4f\n", (f64)OSElapsed/(f64)OSFreq); */
+    /* printf("  CPU Timer: %llu -> %llu = %llu elapsed\n", CPUStart, CPUEnd, CPUElapsed); */
+    /* printf("   CPU Freq: %llu (guessed)\n", CPUFreq); */
+
+    return CPUFreq;
+}
+
 int main(int arg_count, char **args)
 {
+    u64 cpu_freqency = estimate_cpu_frequency();
+    timers[0] = ReadCPUTimer();
     if (arg_count < 2)
     {
         print_usage();
@@ -110,14 +153,24 @@ int main(int arg_count, char **args)
     char *mode = args[1];
     if (string_match(mode, "process"))
     {
+
+        timers[1] = ReadCPUTimer();
         Json_Value *value = parse_json("../dist/haversine.json");
+        timers[2] = ReadCPUTimer();
         float average = process_haversine_json(value);
-        printf("average %f\n", average);
+        timers[3] = ReadCPUTimer();
+        /* printf("average %f\n", average); */
         Json_Value *average_check = object_lookup(value, "average");
         if (average_check && average_check->kind == Json_Value_Kind_Float)
         {
             printf("error %f\n", average - average_check->number_float);
         }
+        float total_time = (float)timers[3] - (float)timers[0];
+        printf("  cpu freq: %llu\n", cpu_freqency);
+        printf("   startup: %llu %.2f%%\n", timers[1] - timers[0], 100.0f * (float)(timers[1] - timers[0]) / total_time);
+        printf("     parse: %llu %.2f%%\n", timers[2] - timers[1], 100.0f * (float)(timers[2] - timers[1]) / total_time);
+        printf("   process: %llu %.2f%%\n", timers[3] - timers[2], 100.0f * (float)(timers[3] - timers[2]) / total_time);
+        printf("total time: %.2f seconds\n", total_time / (float)cpu_freqency);
     }
     else if (string_match(mode, "generate"))
     {
@@ -130,7 +183,7 @@ int main(int arg_count, char **args)
         int pairs_count = atoi(args[3]);
         char *file_path = "../dist/haversine.json";
         float average = write_haversine_json(file_path, seed, pairs_count);
-        printf("average %f\n", average);
+        /* printf("average %f\n", average); */
     }
     return 0;
 }
