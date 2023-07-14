@@ -176,7 +176,7 @@ static Json_Value *parse_json_digit(Json_Buffer *buffer)
     }
     int digit_length = min(buffer->i - start, MAX_DIGIT_CHARACTERS - 2);
     memcpy(digit_characters, &buffer->data[start], digit_length);
-    digit_characters[buffer->i + digit_length] = 0;
+    digit_characters[digit_length] = 0;
     if (is_float)
     {
         result->kind = Json_Value_Kind_Float;
@@ -383,7 +383,7 @@ Json_Value *parse_json(char *file_path)
 {
     Json_Buffer *buffer = read_file(file_path);
     Json_Value *result = parse_json_value(buffer);
-    print_json(result);
+    if (0) print_json(result);
     printf("\n");
     return result;
 }

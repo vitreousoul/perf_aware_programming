@@ -18,11 +18,17 @@ static int string_match(char *string_a, char *string_b)
 {
     int i = 0, result = 1;
     if (!string_a || !string_b) return 0;
-    while(string_a[i] != 0 && string_b[i] != 0)
+    while(1)
     {
+        int null_a = string_a[i] == 0;
+        int null_b = string_b[i] == 0;
         if (string_a[i] != string_b[i])
         {
             result = 0;
+            break;
+        }
+        if (null_a || null_b)
+        {
             break;
         }
         i += 1;
@@ -38,6 +44,62 @@ static void print_usage()
     printf("          ./test.sh process\n");
 }
 
+static Json_Value *object_lookup(Json_Value *object, char *key)
+{
+    int i;
+    for (i = 0; i < object->object->used; ++i)
+    {
+        if (string_match(key, object->object->key[i]))
+        {
+            return object->object->value[i];
+        }
+    }
+    return 0;
+}
+
+static float process_haversine_json(Json_Value *object)
+{
+    float sum = 0.0f;
+    int count = 0;
+    if (object && object->kind == Json_Value_Kind_Object)
+    {
+        Json_Value *pairs_array_value = object_lookup(object, "pairs");
+        Json_Array *pairs_array = pairs_array_value->array;
+        if (pairs_array_value && pairs_array_value->kind == Json_Value_Kind_Array)
+        {
+            while (pairs_array)
+            {
+                int i;
+                for (i = 0; i < pairs_array->used; ++i)
+                {
+                    Json_Value *x0 = object_lookup(pairs_array->value[i], "x0");
+                    Json_Value *y0 = object_lookup(pairs_array->value[i], "y0");
+                    Json_Value *x1 = object_lookup(pairs_array->value[i], "x1");
+                    Json_Value *y1 = object_lookup(pairs_array->value[i], "y1");
+                    if (!(x0 && y0 && x1 && y1))
+                    {
+                        printf("process_haversine_json null x/y value\n");
+                    }
+                    float haversine = haversine_of_degrees(x0->number_float, y0->number_float, x1->number_float, y1->number_float, EARTH_RADIUS_KM);
+                    sum += haversine;
+                    count += 1;
+                }
+                pairs_array = pairs_array->next;
+            }
+        }
+        else
+        {
+            printf("process_haversine_json expected array\n");
+        }
+    }
+    else
+    {
+        printf("process_haversine_json expected object\n");
+    }
+    float result = count == 0 ? 0 : sum / (float)count;
+    return result;
+}
+
 int main(int arg_count, char **args)
 {
     if (arg_count < 2)
@@ -48,8 +110,14 @@ int main(int arg_count, char **args)
     char *mode = args[1];
     if (string_match(mode, "process"))
     {
-        printf("time to process!\n");
-        parse_json("../dist/haversine.json");
+        Json_Value *value = parse_json("../dist/haversine.json");
+        float average = process_haversine_json(value);
+        printf("average %f\n", average);
+        Json_Value *average_check = object_lookup(value, "average");
+        if (average_check && average_check->kind == Json_Value_Kind_Float)
+        {
+            printf("error %f\n", average - average_check->number_float);
+        }
     }
     else if (string_match(mode, "generate"))
     {
