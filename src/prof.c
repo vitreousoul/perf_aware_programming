@@ -14,6 +14,9 @@ typedef enum
 	Timer_parse_json_object,
 	Timer_parse_json_string,
 	Timer_parse_json_digit,
+	Timer_json_array_push,
+	Timer_json_object_push,
+	Timer_chomp_space,
 	Timer_process,
 } Timer;
 
@@ -34,12 +37,11 @@ typedef struct
 static Profiler global_profiler;
 Timer global_active_timer;
 
-#define BEGIN_TIMED_BLOCK(tk)									\
-	Timer parent_timer##tk = global_active_timer;				\
-	global_profiler.timers[(tk)].label = #tk;					\
-	Timer_Data *timer = global_profiler.timers + tk;			\
-	u64 OldTSCElapsedInclusive##tk = timer->elapsed_inclusive;	\
-	global_active_timer = tk;									\
+#define BEGIN_TIMED_BLOCK(tk)											\
+	Timer parent_timer##tk = global_active_timer;						\
+	global_profiler.timers[(tk)].label = #tk;							\
+	u64 OldTSCElapsedInclusive##tk = (global_profiler.timers + tk)->elapsed_inclusive; \
+	global_active_timer = tk;											\
 	u64 start_time##tk = ReadCPUTimer();
 
 #define END_TIMED_BLOCK(tk)												\

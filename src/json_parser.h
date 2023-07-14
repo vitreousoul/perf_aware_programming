@@ -1,7 +1,7 @@
 #define IS_DIGIT(c) ((c) >= '0' && (c) <= '9')
 #define IS_SPACE(c) ((c) == ' ' || (c) == '\r' || (c) == '\t' || (c) == '\n')
 
-#define ARRAY_CHUNK_COUNT 1024
+#define ARRAY_CHUNK_COUNT 2048
 
 typedef enum
 {
@@ -70,6 +70,7 @@ static Json_Object *create_json_object()
 
 static void json_array_push(Json_Array *array, Json_Value *value)
 {
+    BEGIN_TIMED_BLOCK(Timer_json_array_push);
     if (!array) array = create_json_array();
     while(1)
     {
@@ -88,10 +89,12 @@ static void json_array_push(Json_Array *array, Json_Value *value)
             break;
         }
     }
+    END_TIMED_BLOCK(Timer_json_array_push);
 }
 
 static void json_object_push(Json_Object *object, char *key, Json_Value *value)
 {
+    BEGIN_TIMED_BLOCK(Timer_json_object_push);
     if (!object) object = create_json_object();
     while(1)
     {
@@ -111,6 +114,7 @@ static void json_object_push(Json_Object *object, char *key, Json_Value *value)
             break;
         }
     }
+    END_TIMED_BLOCK(Timer_json_object_push);
 }
 
 static Json_Buffer *read_file(char *file_path)
@@ -141,6 +145,7 @@ static int min(int a, int b)
 
 static void chomp_space(Json_Buffer *buffer)
 {
+    /* BEGIN_TIMED_BLOCK(Timer_chomp_space); */
     while(1)
     {
         char character = buffer->data[buffer->i];
@@ -150,6 +155,7 @@ static void chomp_space(Json_Buffer *buffer)
         }
         buffer->i += 1;
     }
+    /* END_TIMED_BLOCK(Timer_chomp_space); */
 }
 
 #define MAX_DIGIT_CHARACTERS 512
@@ -269,19 +275,10 @@ static Json_Value *parse_json_object(Json_Buffer *buffer)
     result->kind = Json_Value_Kind_Object;
     result->object = create_json_object();
     buffer->i += 1; // skip over the open bracket
-    while(1)
+    for(;;)
     {
         chomp_space(buffer);
         Json_Value *key = parse_json_value(buffer);
-        if (!key)
-        {
-            printf("parse_json_object null key\n");
-            return 0;
-        }
-        if (key->kind != Json_Value_Kind_String)
-        {
-            printf("parse_json_object expected string as key but got value-kind %d\n", key->kind);
-        }
         chomp_space(buffer);
         if (buffer->data[buffer->i] != ':')
         {
@@ -290,11 +287,6 @@ static Json_Value *parse_json_object(Json_Buffer *buffer)
         buffer->i += 1; // skip over colon
         chomp_space(buffer);
         Json_Value *value = parse_json_value(buffer);
-        if (!value)
-        {
-            printf("parse_json_object null value\n");
-            return 0;
-        }
         json_object_push(result->object, key->string, value);
         chomp_space(buffer);
         if (buffer->data[buffer->i] == ',')
