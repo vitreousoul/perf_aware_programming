@@ -64,10 +64,16 @@ static Json_Value *object_lookup(Json_Value *object, char *key)
     return 0;
 }
 
-static float process_haversine_json(Json_Value *object)
+typedef struct
+{
+    float average;
+    int pairs_count;
+} haversine_result;
+static haversine_result process_haversine_json(Json_Value *object)
 {
     float sum = 0.0f;
     int count = 0;
+    haversine_result result;
     if (object && object->kind == Json_Value_Kind_Object)
     {
         Json_Value *pairs_array_value = object_lookup(object, "pairs");
@@ -103,7 +109,8 @@ static float process_haversine_json(Json_Value *object)
     {
         printf("process_haversine_json expected object\n");
     }
-    float result = count == 0 ? 0 : sum / (float)count;
+    result.pairs_count = count;
+    result.average = count == 0 ? 0 : sum / (float)count;
     return result;
 }
 
@@ -120,13 +127,16 @@ int main(int arg_count, char **args)
     {
         Json_Value *value = parse_json("../dist/haversine.json");
         BEGIN_TIMED_BLOCK(Timer_process);
-        float average = process_haversine_json(value);
+        haversine_result result = process_haversine_json(value);
         END_TIMED_BLOCK(Timer_process);
         Json_Value *average_check = object_lookup(value, "average");
+#if !CSV
         if (average_check && average_check->kind == Json_Value_Kind_Float)
         {
-            printf("error %f\n", average - average_check->number_float);
+             printf("error %f\n", result.average - average_check->number_float);
         }
+#endif
+        end_and_print_profile(result.pairs_count);
     }
     else if (string_match(mode, "generate"))
     {
@@ -140,6 +150,5 @@ int main(int arg_count, char **args)
         char *file_path = "../dist/haversine.json";
         write_haversine_json(file_path, seed, pairs_count);
     }
-    end_and_print_profile();
     return 0;
 }

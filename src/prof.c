@@ -2,6 +2,10 @@
 #include <sys/time.h>
 
 #define MAX_TIMERS 1024
+#define CSV 0
+#define HEADER 0
+
+#define ID_TO_STRING(id) #id
 
 typedef enum
 {
@@ -56,7 +60,7 @@ u64 ReadOSTimer(void);
 u64 ReadCPUTimer(void);
 void print_timer_stats(void);
 void begin_profile(void);
-void end_and_print_profile(void);
+void end_and_print_profile(int pairs_count);
 
 static u64 GetOSTimerFreq(void)
 {
@@ -113,12 +117,12 @@ static int estimate_cpu_frequency()
 
 static void print_time_elapsed(u64 total_elapsed_time, Timer_Data *timer)
 {
-	f64 Percent = 100.0 * ((f64)timer->elapsed_exclusive / (f64)total_elapsed_time);
-	printf("  %s[%llu]: %llu (%.2f%%", timer->label, timer->hit_count, timer->elapsed_exclusive, Percent);
+	f64 percent = 100.0 * ((f64)timer->elapsed_exclusive / (f64)total_elapsed_time);
+	printf("  %s[%llu]: %llu (%.2f%%", timer->label, timer->hit_count, timer->elapsed_exclusive, percent);
 	if(timer->elapsed_inclusive != timer->elapsed_exclusive)
 	{
-		f64 PercentWithChildren = 100.0 * ((f64)timer->elapsed_inclusive / (f64)total_elapsed_time);
-		printf(", %.2f%% w/children", PercentWithChildren);
+		f64 percent_with_children = 100.0 * ((f64)timer->elapsed_inclusive / (f64)total_elapsed_time);
+		printf(", %.2f%% w/children", percent_with_children);
 	}
 	printf(")\n");
 }
@@ -128,24 +132,45 @@ void begin_profile(void)
 	global_profiler.start_time = ReadCPUTimer();
 }
 
-void end_and_print_profile(void)
+void end_and_print_profile(int pairs_count)
 {
 	global_profiler.end_time = ReadCPUTimer();
 	u64 CPUFreq = estimate_cpu_frequency();
 
-	u64 TotalCPUElapsed = global_profiler.end_time - global_profiler.start_time;
+	u64 total_elapsed_time = global_profiler.end_time - global_profiler.start_time;
 
+#if !CSV
 	if(CPUFreq)
 	{
-		printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (f64)TotalCPUElapsed / (f64)CPUFreq, CPUFreq);
+		printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (f64)total_elapsed_time / (f64)CPUFreq, CPUFreq);
 	}
 
-	for(u32 AnchorIndex = 0; AnchorIndex < array_count(global_profiler.timers); ++AnchorIndex)
+	for(u32 timer_index = 0; timer_index < array_count(global_profiler.timers); ++timer_index)
 	{
-		Timer_Data *timer = global_profiler.timers + AnchorIndex;
+		Timer_Data *timer = global_profiler.timers + timer_index;
 		if(timer->elapsed_inclusive)
 		{
-			print_time_elapsed(TotalCPUElapsed, timer);
+			print_time_elapsed(total_elapsed_time, timer);
 		}
 	}
+#else
+#if HEADER
+	for (u32 i = 0; i < array_count(global_profiler.timers); ++i)
+	{
+		Timer_Data timer = global_profiler.timers[i];
+		if(timer.label) printf("%s,", timer.label);
+	}
+	printf("pairs_count\n");
+#endif
+	for (u32 i = 0; i < array_count(global_profiler.timers); ++i)
+	{
+		Timer_Data timer = global_profiler.timers[i];
+		if(timer.label)
+		{
+			f64 percent = 100.0 * ((f64)timer.elapsed_exclusive / (f64)total_elapsed_time);
+			printf("%f,", percent);
+		}
+	}
+	printf("%d\n", pairs_count);
+#endif
 }

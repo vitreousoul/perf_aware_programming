@@ -389,7 +389,7 @@ Json_Value *parse_json(char *file_path)
     Json_Buffer *buffer = read_file(file_path);
     Json_Value *result = parse_json_value(buffer);
     if (0) print_json(result);
-    printf("\n");
+    /* printf("\n"); */
     END_TIMED_BLOCK(Timer_parse);
     return result;
 }
