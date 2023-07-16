@@ -57,7 +57,8 @@ static Json_Value *parse_json_value(Json_Buffer *buffer);
 static Json_Array *create_json_array()
 {
     Json_Array *result = malloc(sizeof(Json_Array));
-    memset(result, 0, sizeof(Json_Array));
+    result->next = 0;
+    result->used = 0;
     return result;
 }
 
