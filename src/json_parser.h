@@ -271,7 +271,9 @@ static Json_Value *parse_json_array(Json_Buffer *buffer)
 
 static Json_Value *parse_json_object(Json_Buffer *buffer)
 {
+    BEGIN_TIMED_TIMER(Timer_BEGIN_TIMED_TIMER);
     BEGIN_TIMED_BLOCK(Timer_parse_json_object);
+    END_TIMED_TIMER(Timer_BEGIN_TIMED_TIMER);
     Json_Value *result = malloc(sizeof(Json_Value));
     result->kind = Json_Value_Kind_Object;
     result->object = create_json_object();
@@ -306,7 +308,9 @@ static Json_Value *parse_json_object(Json_Buffer *buffer)
             return 0;
         }
     }
+    BEGIN_TIMED_TIMER(Timer_END_TIMED_TIMER);
     END_TIMED_BLOCK(Timer_parse_json_object);
+    END_TIMED_TIMER(Timer_END_TIMED_TIMER);
     return result;
 }
 

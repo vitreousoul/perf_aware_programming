@@ -22,6 +22,8 @@ typedef enum
 	Timer_json_object_push,
 	Timer_chomp_space,
 	Timer_process,
+	Timer_BEGIN_TIMED_TIMER,
+	Timer_END_TIMED_TIMER,
 } Timer;
 
 typedef struct
@@ -40,21 +42,28 @@ typedef struct
 } Profiler;
 static Profiler global_profiler;
 Timer global_active_timer;
+Timer global_timed_timer;
 
-#define BEGIN_TIMED_BLOCK(tk)											\
+#define _BEGIN_TIMED_BLOCK(tk, target_timer)											\
 	Timer parent_timer##tk = global_active_timer;						\
 	global_profiler.timers[(tk)].label = #tk;							\
 	u64 OldTSCElapsedInclusive##tk = (global_profiler.timers + tk)->elapsed_inclusive; \
-	global_active_timer = tk;											\
+	target_timer = tk;											\
 	u64 start_time##tk = ReadCPUTimer();
 
-#define END_TIMED_BLOCK(tk)												\
+#define _END_TIMED_BLOCK(tk, target_timer)												\
 	u64 elapsed##tk = ReadCPUTimer() - start_time##tk;					\
-	global_active_timer = parent_timer##tk;								\
+	target_timer = parent_timer##tk;								\
 	global_profiler.timers[parent_timer##tk].elapsed_exclusive -= elapsed##tk; \
 	global_profiler.timers[(tk)].elapsed_exclusive += elapsed##tk;		\
 	global_profiler.timers[(tk)].elapsed_inclusive = OldTSCElapsedInclusive##tk + elapsed##tk; \
 	global_profiler.timers[(tk)].hit_count += 1
+
+#define BEGIN_TIMED_BLOCK(tk) _BEGIN_TIMED_BLOCK(tk, global_active_timer)
+#define END_TIMED_BLOCK(tk) _END_TIMED_BLOCK(tk, global_active_timer)
+
+#define BEGIN_TIMED_TIMER(tk) _BEGIN_TIMED_BLOCK(tk, global_timed_timer)
+#define END_TIMED_TIMER(tk) _END_TIMED_BLOCK(tk, global_timed_timer)
 
 u64 ReadOSTimer(void);
 u64 ReadCPUTimer(void);
