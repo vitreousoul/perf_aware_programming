@@ -74,6 +74,7 @@ typedef enum
 	Timer_json_object_push,
 	Timer_chomp_space,
 	Timer_process,
+	Timer_free,
 	Timer_BEGIN_TIMED_TIMER,
 	Timer_END_TIMED_TIMER,
 } Timer;

@@ -130,6 +130,11 @@ int main(int arg_count, char **args)
         haversine_result result = process_haversine_json(value);
         END_TIMED_BLOCK(Timer_process);
         Json_Value *average_check = object_lookup(value, "average");
+        BEGIN_TIMED_BLOCK(Timer_free);
+        free_json(value);
+        END_TIMED_BLOCK(Timer_free);
+        printf("global_malloc_count %llu\n", global_malloc_count);
+        printf("global_free_count %llu\n", global_free_count);
 #if !CSV
         if (average_check && average_check->kind == Json_Value_Kind_Float)
         {

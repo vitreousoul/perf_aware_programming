@@ -53,11 +53,27 @@ typedef struct
 } Json_Buffer;
 
 Json_Value *parse_json(char *file_path);
+void free_json(Json_Value *value);
 static Json_Value *parse_json_value(Json_Buffer *buffer);
+
+u64 global_malloc_count = 0;
+u64 global_free_count = 0;
+
+static inline void *allocate_memory(size_t size)
+{
+    global_malloc_count += 1;
+    return malloc(size);
+}
+
+static inline void free_memory(void *mem)
+{
+    global_free_count += 1;
+    free(mem);
+}
 
 static Json_Array *create_json_array()
 {
-    Json_Array *result = malloc(sizeof(Json_Array));
+    Json_Array *result = allocate_memory(sizeof(Json_Array));
     result->next = 0;
     result->used = 0;
     return result;
@@ -65,7 +81,7 @@ static Json_Array *create_json_array()
 
 static Json_Object *create_json_object()
 {
-    Json_Object *result = malloc(sizeof(Json_Object));
+    Json_Object *result = allocate_memory(sizeof(Json_Object));
     // NOTE: the key/value arrays are unitialized, but that's ok because we overwrite them before reading the values.
     result->next = 0;
     result->used = 0;
@@ -131,9 +147,9 @@ static Json_Buffer *read_file(char *file_path)
         printf("read_file stat error\n");
         return 0;
     }
-    Json_Buffer *buffer = malloc(sizeof(Json_Buffer));
+    Json_Buffer *buffer = allocate_memory(sizeof(Json_Buffer));
     FILE *file = fopen(file_path, "rb");
-    buffer->data = malloc(stat_result.st_size + 1);
+    buffer->data = allocate_memory(stat_result.st_size + 1);
     fread(buffer->data, 1, stat_result.st_size, file);
     buffer->data[stat_result.st_size] = 0; // null terminate
     buffer->i = 0;
@@ -168,7 +184,7 @@ static Json_Value *parse_json_digit(Json_Buffer *buffer)
 {
     // BEGIN_TIMED_BLOCK(Timer_parse_json_digit);
     int start = buffer->i, is_float = 0;
-    Json_Value *result = malloc(sizeof(Json_Value));
+    Json_Value *result = allocate_memory(sizeof(Json_Value));
     while(buffer->data[buffer->i])
     {
         char character = buffer->data[buffer->i];
@@ -207,7 +223,7 @@ static Json_Value *parse_json_digit(Json_Buffer *buffer)
 static Json_Value *parse_json_string(Json_Buffer *buffer)
 {
     // BEGIN_TIMED_BLOCK(Timer_parse_json_string);
-    Json_Value *result = malloc(sizeof(Json_Value));
+    Json_Value *result = allocate_memory(sizeof(Json_Value));
     buffer->i += 1; // we are on a quote character, so skip it
     size_t start = buffer->i;
     while(buffer->data[buffer->i])
@@ -226,7 +242,7 @@ static Json_Value *parse_json_string(Json_Buffer *buffer)
     size_t string_length = buffer->i - start;
     buffer->i += 1; // skip over closing quote
     result->kind = Json_Value_Kind_String;
-    result->string = malloc(string_length + 1);
+    result->string = allocate_memory(string_length + 1);
     memcpy(result->string, &buffer->data[start], string_length);
     result->string[string_length] = 0;
     // END_TIMED_BLOCK(Timer_parse_json_string);
@@ -237,7 +253,7 @@ static Json_Value *parse_json_array(Json_Buffer *buffer)
 {
     // BEGIN_TIMED_BLOCK(Timer_parse_json_array);
 
-    Json_Value *result = malloc(sizeof(Json_Value));
+    Json_Value *result = allocate_memory(sizeof(Json_Value));
     result->kind = Json_Value_Kind_Array;
     result->array = create_json_array();
     buffer->i += 1; // skip over the open bracket
@@ -275,7 +291,7 @@ static Json_Value *parse_json_array(Json_Buffer *buffer)
 static Json_Value *parse_json_object(Json_Buffer *buffer)
 {
     // BEGIN_TIMED_BLOCK(Timer_parse_json_object);
-    Json_Value *result = malloc(sizeof(Json_Value));
+    Json_Value *result = allocate_memory(sizeof(Json_Value));
     result->kind = Json_Value_Kind_Object;
     result->object = create_json_object();
     buffer->i += 1; // skip over the open bracket
@@ -292,6 +308,7 @@ static Json_Value *parse_json_object(Json_Buffer *buffer)
         chomp_space(buffer);
         Json_Value *value = parse_json_value(buffer);
         json_object_push(result->object, key->string, value);
+        free_memory(key);
         chomp_space(buffer);
         if (buffer->data[buffer->i] == ',')
         {
@@ -309,9 +326,7 @@ static Json_Value *parse_json_object(Json_Buffer *buffer)
             return 0;
         }
     }
-    // BEGIN_TIMED_TIMER(Timer_END_TIMED_TIMER);
     // END_TIMED_BLOCK(Timer_parse_json_object);
-    // END_TIMED_TIMER(Timer_END_TIMED_TIMER);
     return result;
 }
 
@@ -396,6 +411,54 @@ Json_Value *parse_json(char *file_path)
     Json_Value *result = parse_json_value(buffer);
     if (0) print_json(result);
     /* printf("\n"); */
+    free_memory(buffer->data);
+    free_memory(buffer);
     END_TIMED_BLOCK(Timer_parse);
     return result;
+}
+
+void free_json(Json_Value *value)
+{
+    if (!value) return;
+    switch(value->kind)
+    {
+    case Json_Value_Kind_String:
+        if (value->string)
+        {
+            free_memory(value->string);
+        }
+        break;
+    case Json_Value_Kind_Array:
+    {
+        Json_Array *array = value->array;
+        while (array)
+        {
+            for (int i = 0; i < array->used; ++i)
+            {
+                free_json(array->value[i]);
+            }
+            Json_Array *old_array = array;
+            array = array->next;
+            free_memory(old_array);
+        }
+    } break;
+    case Json_Value_Kind_Object:
+    {
+        Json_Object *object = value->object;
+        while (object)
+        {
+            for (int i = 0; i < object->used; ++i)
+            {
+                free_memory(object->key[i]);
+                free_json(object->value[i]);
+            }
+            Json_Object *old_object = object;
+            object = object->next;
+            free_memory(old_object);
+        }
+    } break;
+    default:
+        break;
+    }
+    free_memory(value);
 }
