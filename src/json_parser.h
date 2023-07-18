@@ -66,7 +66,9 @@ static Json_Array *create_json_array()
 static Json_Object *create_json_object()
 {
     Json_Object *result = malloc(sizeof(Json_Object));
-    memset(result, 0, sizeof(Json_Object));
+    // NOTE: the key/value arrays are unitialized, but that's ok because we overwrite them before reading the values.
+    result->next = 0;
+    result->used = 0;
     return result;
 }
 
