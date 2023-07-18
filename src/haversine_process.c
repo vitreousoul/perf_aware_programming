@@ -8,11 +8,30 @@ typedef uint32_t u32;
 typedef uint64_t u64;
 typedef double f64;
 
+typedef enum
+{
+    Timer_ROOT,
+    Timer_parse,
+    Timer_parse_read,
+    Timer_parse_parse,
+    Timer_parse_json_value,
+    Timer_parse_json_array,
+    Timer_parse_json_object,
+    Timer_parse_json_string,
+    Timer_parse_json_digit,
+    Timer_json_array_push,
+    Timer_json_object_push,
+    Timer_chomp_space,
+    Timer_process,
+    Timer_free,
+    Timer_BEGIN_TIMED_TIMER,
+    Timer_END_TIMED_TIMER,
+} Timer;
+
 #include "haversine_process.h"
 #include "prof.c"
 #include "json_parser.h"
 #include "haversine_generate_json.c"
-
 
 typedef enum
 {

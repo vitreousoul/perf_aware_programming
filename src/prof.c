@@ -59,26 +59,6 @@ static int estimate_cpu_frequency()
 #define CSV 0
 #define HEADER 0
 
-typedef enum
-{
-	Timer_ROOT,
-	Timer_parse,
-	Timer_parse_read,
-	Timer_parse_parse,
-	Timer_parse_json_value,
-	Timer_parse_json_array,
-	Timer_parse_json_object,
-	Timer_parse_json_string,
-	Timer_parse_json_digit,
-	Timer_json_array_push,
-	Timer_json_object_push,
-	Timer_chomp_space,
-	Timer_process,
-	Timer_free,
-	Timer_BEGIN_TIMED_TIMER,
-	Timer_END_TIMED_TIMER,
-} Timer;
-
 typedef struct
 {
 	u64 elapsed_exclusive;
@@ -94,11 +74,11 @@ typedef struct
 	u64 end_time;
 } Profiler;
 static Profiler global_profiler;
-Timer global_active_timer;
-Timer global_timed_timer;
+u32 global_active_timer;
+u32 global_timed_timer;
 
 #define _BEGIN_TIMED_BLOCK(tk, target_timer)											\
-	Timer parent_timer##tk = global_active_timer;						\
+	u32 parent_timer##tk = global_active_timer;						\
 	global_profiler.timers[(tk)].label = #tk;							\
 	u64 OldTSCElapsedInclusive##tk = (global_profiler.timers + tk)->elapsed_inclusive; \
 	target_timer = tk;											\
