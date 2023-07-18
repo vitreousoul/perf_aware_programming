@@ -1,11 +1,63 @@
+// TODO: include windows code-paths
 #include <x86intrin.h>
 #include <sys/time.h>
+
+#ifndef PROFILER
+#define PROFILER 1
+#endif
+
+u64 ReadCPUTimer(void);
+u64 ReadOSTimer(void);
+void begin_profile(void);
+void end_and_print_profile(int pairs_count);
+
+inline u64 ReadCPUTimer(void)
+{
+	return __rdtsc();
+}
+
+static u64 GetOSTimerFreq(void)
+{
+	return 1000000;
+}
+
+u64 ReadOSTimer(void)
+{
+	struct timeval Value;
+	gettimeofday(&Value, 0);
+	u64 Result = GetOSTimerFreq()*(u64)Value.tv_sec + (u64)Value.tv_usec;
+	return Result;
+}
+
+static int estimate_cpu_frequency()
+{
+	u64 MillisecondsToWait = 100;
+	u64 OSFreq = GetOSTimerFreq();
+	u64 CPUStart = ReadCPUTimer();
+	u64 OSStart = ReadOSTimer();
+	u64 OSEnd = 0;
+	u64 OSElapsed = 0;
+	u64 OSWaitTime = OSFreq * MillisecondsToWait / 1000;
+	while(OSElapsed < OSWaitTime)
+	{
+		OSEnd = ReadOSTimer();
+		OSElapsed = OSEnd - OSStart;
+	}
+	u64 CPUEnd = ReadCPUTimer();
+	u64 CPUElapsed = CPUEnd - CPUStart;
+	u64 CPUFreq = 0;
+	if(OSElapsed)
+	{
+		CPUFreq = OSFreq * CPUElapsed / OSElapsed;
+	}
+	return CPUFreq;
+}
+
+#if PROFILER
 
 #define MAX_TIMERS 1024
 #define CSV 0
 #define HEADER 0
-
-#define ID_TO_STRING(id) #id
 
 typedef enum
 {
@@ -65,64 +117,7 @@ Timer global_timed_timer;
 #define BEGIN_TIMED_TIMER(tk) _BEGIN_TIMED_BLOCK(tk, global_timed_timer)
 #define END_TIMED_TIMER(tk) _END_TIMED_BLOCK(tk, global_timed_timer)
 
-u64 ReadOSTimer(void);
-u64 ReadCPUTimer(void);
 void print_timer_stats(void);
-void begin_profile(void);
-void end_and_print_profile(int pairs_count);
-
-static u64 GetOSTimerFreq(void)
-{
-	return 1000000;
-}
-
-u64 ReadOSTimer(void)
-{
-	// NOTE(casey): The "struct" keyword is not necessary here when compiling in C++,
-	// but just in case anyone is using this file from C, I include it.
-	struct timeval Value;
-	gettimeofday(&Value, 0);
-
-	u64 Result = GetOSTimerFreq()*(u64)Value.tv_sec + (u64)Value.tv_usec;
-	return Result;
-}
-
-/* NOTE(casey): This does not need to be "inline", it could just be "static"
-   because compilers will inline it anyway. But compilers will warn about
-   static functions that aren't used. So "inline" is just the simplest way
-   to tell them to stop complaining about that. */
-inline u64 ReadCPUTimer(void)
-{
-	// NOTE(casey): If you were on ARM, you would need to replace __rdtsc
-	// with one of their performance counter read instructions, depending
-	// on which ones are available on your platform.
-
-	return __rdtsc();
-}
-
-static int estimate_cpu_frequency()
-{
-	u64 MillisecondsToWait = 100;
-	u64 OSFreq = GetOSTimerFreq();
-	u64 CPUStart = ReadCPUTimer();
-	u64 OSStart = ReadOSTimer();
-	u64 OSEnd = 0;
-	u64 OSElapsed = 0;
-	u64 OSWaitTime = OSFreq * MillisecondsToWait / 1000;
-	while(OSElapsed < OSWaitTime)
-	{
-		OSEnd = ReadOSTimer();
-		OSElapsed = OSEnd - OSStart;
-	}
-	u64 CPUEnd = ReadCPUTimer();
-	u64 CPUElapsed = CPUEnd - CPUStart;
-	u64 CPUFreq = 0;
-	if(OSElapsed)
-	{
-		CPUFreq = OSFreq * CPUElapsed / OSElapsed;
-	}
-	return CPUFreq;
-}
 
 static void print_time_elapsed(u64 total_elapsed_time, Timer_Data *timer)
 {
@@ -151,7 +146,9 @@ void end_and_print_profile(int pairs_count)
 #if !CSV
 	if(CPUFreq)
 	{
-		printf("\nTotal time: %0.4fms (CPU freq %llu)\n", 1000.0 * (f64)total_elapsed_time / (f64)CPUFreq, CPUFreq);
+		float total_elapsed_time_in_ms = 1000.0 * (f64)total_elapsed_time / (f64)CPUFreq;
+		printf("\nTotal time: %0.4fms (CPU freq %llu)\n", total_elapsed_time_in_ms, CPUFreq);
+		printf("    %0.4f pairs/ms\n", (f64)pairs_count / total_elapsed_time_in_ms);
 	}
 
 	for(u32 timer_index = 0; timer_index < array_count(global_profiler.timers); ++timer_index)
@@ -183,3 +180,37 @@ void end_and_print_profile(int pairs_count)
 	printf("%d\n", pairs_count);
 #endif
 }
+
+#else
+
+typedef struct
+{
+	u64 start_time;
+	u64 end_time;
+} Profiler;
+static Profiler global_profiler;
+
+#define BEGIN_TIMED_BLOCK(...)
+#define END_TIMED_BLOCK(...)
+#define BEGIN_TIMED_TIMER(...)
+#define END_TIMED_TIMER(...)
+
+void begin_profile(void)
+{
+	global_profiler.start_time = ReadCPUTimer();
+}
+
+void end_and_print_profile(int pairs_count)
+{
+	global_profiler.end_time = ReadCPUTimer();
+	u64 CPUFreq = estimate_cpu_frequency();
+	u64 total_elapsed_time = global_profiler.end_time - global_profiler.start_time;
+	if(CPUFreq)
+	{
+		float total_elapsed_time_in_ms = 1000.0 * (f64)total_elapsed_time / (f64)CPUFreq;
+		printf("\nTotal time: %0.4fms (CPU freq %llu)\n", total_elapsed_time_in_ms, CPUFreq);
+		printf("    %0.4f pairs/ms\n", (f64)pairs_count / total_elapsed_time_in_ms);
+	}
+}
+
+#endif

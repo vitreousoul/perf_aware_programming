@@ -1,3 +1,4 @@
+// TODO: add a free_json(Json_Value *value) function, and then use it and time it
 #define IS_DIGIT(c) ((c) >= '0' && (c) <= '9')
 #define IS_SPACE(c) ((c) == ' ' || (c) == '\r' || (c) == '\t' || (c) == '\n')
 
@@ -71,7 +72,7 @@ static Json_Object *create_json_object()
 
 static void json_array_push(Json_Array *array, Json_Value *value)
 {
-    BEGIN_TIMED_BLOCK(Timer_json_array_push);
+    // BEGIN_TIMED_BLOCK(Timer_json_array_push);
     if (!array) array = create_json_array();
     while(1)
     {
@@ -90,12 +91,12 @@ static void json_array_push(Json_Array *array, Json_Value *value)
             break;
         }
     }
-    END_TIMED_BLOCK(Timer_json_array_push);
+    // END_TIMED_BLOCK(Timer_json_array_push);
 }
 
 static void json_object_push(Json_Object *object, char *key, Json_Value *value)
 {
-    BEGIN_TIMED_BLOCK(Timer_json_object_push);
+    // BEGIN_TIMED_BLOCK(Timer_json_object_push);
     if (!object) object = create_json_object();
     while(1)
     {
@@ -115,12 +116,12 @@ static void json_object_push(Json_Object *object, char *key, Json_Value *value)
             break;
         }
     }
-    END_TIMED_BLOCK(Timer_json_object_push);
+    // END_TIMED_BLOCK(Timer_json_object_push);
 }
 
 static Json_Buffer *read_file(char *file_path)
 {
-    BEGIN_TIMED_BLOCK(Timer_parse_read);
+    // BEGIN_TIMED_BLOCK(Timer_parse_read);
     struct stat stat_result;
     int stat_error = stat(file_path, &stat_result);
     if (stat_error)
@@ -135,7 +136,7 @@ static Json_Buffer *read_file(char *file_path)
     buffer->data[stat_result.st_size] = 0; // null terminate
     buffer->i = 0;
     fclose(file);
-    END_TIMED_BLOCK(Timer_parse_read);
+    // END_TIMED_BLOCK(Timer_parse_read);
     return buffer;
 }
 
@@ -163,7 +164,7 @@ static void chomp_space(Json_Buffer *buffer)
 char digit_characters[MAX_DIGIT_CHARACTERS] = {};
 static Json_Value *parse_json_digit(Json_Buffer *buffer)
 {
-    BEGIN_TIMED_BLOCK(Timer_parse_json_digit);
+    // BEGIN_TIMED_BLOCK(Timer_parse_json_digit);
     int start = buffer->i, is_float = 0;
     Json_Value *result = malloc(sizeof(Json_Value));
     while(buffer->data[buffer->i])
@@ -197,13 +198,13 @@ static Json_Value *parse_json_digit(Json_Buffer *buffer)
         result->kind = Json_Value_Kind_Integer;
         result->number_integer = atoi(digit_characters);
     }
-    END_TIMED_BLOCK(Timer_parse_json_digit);
+    // END_TIMED_BLOCK(Timer_parse_json_digit);
     return result;
 }
 
 static Json_Value *parse_json_string(Json_Buffer *buffer)
 {
-    BEGIN_TIMED_BLOCK(Timer_parse_json_string);
+    // BEGIN_TIMED_BLOCK(Timer_parse_json_string);
     Json_Value *result = malloc(sizeof(Json_Value));
     buffer->i += 1; // we are on a quote character, so skip it
     size_t start = buffer->i;
@@ -226,13 +227,13 @@ static Json_Value *parse_json_string(Json_Buffer *buffer)
     result->string = malloc(string_length + 1);
     memcpy(result->string, &buffer->data[start], string_length);
     result->string[string_length] = 0;
-    END_TIMED_BLOCK(Timer_parse_json_string);
+    // END_TIMED_BLOCK(Timer_parse_json_string);
     return result;
 }
 
 static Json_Value *parse_json_array(Json_Buffer *buffer)
 {
-    BEGIN_TIMED_BLOCK(Timer_parse_json_array);
+    // BEGIN_TIMED_BLOCK(Timer_parse_json_array);
 
     Json_Value *result = malloc(sizeof(Json_Value));
     result->kind = Json_Value_Kind_Array;
@@ -265,15 +266,13 @@ static Json_Value *parse_json_array(Json_Buffer *buffer)
             return 0;
         }
     }
-    END_TIMED_BLOCK(Timer_parse_json_array);
+    // END_TIMED_BLOCK(Timer_parse_json_array);
     return result;
 }
 
 static Json_Value *parse_json_object(Json_Buffer *buffer)
 {
-    BEGIN_TIMED_TIMER(Timer_BEGIN_TIMED_TIMER);
-    BEGIN_TIMED_BLOCK(Timer_parse_json_object);
-    END_TIMED_TIMER(Timer_BEGIN_TIMED_TIMER);
+    // BEGIN_TIMED_BLOCK(Timer_parse_json_object);
     Json_Value *result = malloc(sizeof(Json_Value));
     result->kind = Json_Value_Kind_Object;
     result->object = create_json_object();
@@ -308,15 +307,15 @@ static Json_Value *parse_json_object(Json_Buffer *buffer)
             return 0;
         }
     }
-    BEGIN_TIMED_TIMER(Timer_END_TIMED_TIMER);
-    END_TIMED_BLOCK(Timer_parse_json_object);
-    END_TIMED_TIMER(Timer_END_TIMED_TIMER);
+    // BEGIN_TIMED_TIMER(Timer_END_TIMED_TIMER);
+    // END_TIMED_BLOCK(Timer_parse_json_object);
+    // END_TIMED_TIMER(Timer_END_TIMED_TIMER);
     return result;
 }
 
 static Json_Value *parse_json_value(Json_Buffer *buffer)
 {
-    BEGIN_TIMED_BLOCK(Timer_parse_json_value);
+    // BEGIN_TIMED_BLOCK(Timer_parse_json_value);
     Json_Value *result = 0;
     chomp_space(buffer);
     switch(buffer->data[buffer->i])
@@ -339,7 +338,7 @@ static Json_Value *parse_json_value(Json_Buffer *buffer)
         printf("Error parsing json value, found '%c'\n", buffer->data[buffer->i]);
         return 0;
     }
-    END_TIMED_BLOCK(Timer_parse_json_value);
+    // END_TIMED_BLOCK(Timer_parse_json_value);
     return result;
 }
 
