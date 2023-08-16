@@ -10,7 +10,6 @@ typedef double f64;
 
 typedef enum
 {
-    Timer_ROOT,
     Timer_parse,
     Timer_parse_read,
     Timer_parse_parse,
@@ -29,7 +28,7 @@ typedef enum
 } Timer;
 
 #include "haversine_process.h"
-#include "prof.c"
+#include "ryn_prof.h"
 #include "json_parser.h"
 #include "haversine_generate_json.c"
 
@@ -135,7 +134,7 @@ static haversine_result process_haversine_json(Json_Value *object)
 
 int main(int arg_count, char **args)
 {
-    begin_profile();
+    BeginProfile();
     if (arg_count < 2)
     {
         print_usage();
@@ -145,7 +144,9 @@ int main(int arg_count, char **args)
     if (string_match(mode, "process"))
     {
         Json_Value *value = parse_json("../dist/haversine.json");
-        BEGIN_TIMED_BLOCK(Timer_process);
+        Json_Value *pairs_count_value = object_lookup(value, "pairs_count");
+        int pairs_count = pairs_count_value ? pairs_count_value->number_integer : 0;
+        BEGIN_BANDWIDTH_BLOCK(Timer_process, pairs_count*4*sizeof(float));
         haversine_result result = process_haversine_json(value);
         END_TIMED_BLOCK(Timer_process);
         Json_Value *average_check = object_lookup(value, "average");
@@ -160,7 +161,7 @@ int main(int arg_count, char **args)
              printf("error %f\n", result.average - average_check->number_float);
         }
 #endif
-        end_and_print_profile(result.pairs_count);
+        EndAndPrintProfile();
     }
     else if (string_match(mode, "generate"))
     {

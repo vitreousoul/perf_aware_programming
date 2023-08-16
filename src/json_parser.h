@@ -139,7 +139,6 @@ static void json_object_push(Json_Object *object, char *key, Json_Value *value)
 
 static Json_Buffer *read_file(char *file_path)
 {
-    // BEGIN_TIMED_BLOCK(Timer_parse_read);
     struct stat stat_result;
     int stat_error = stat(file_path, &stat_result);
     if (stat_error)
@@ -147,6 +146,7 @@ static Json_Buffer *read_file(char *file_path)
         printf("read_file stat error\n");
         return 0;
     }
+    BEGIN_BANDWIDTH_BLOCK(Timer_parse_read, stat_result.st_size);
     Json_Buffer *buffer = allocate_memory(sizeof(Json_Buffer));
     FILE *file = fopen(file_path, "rb");
     buffer->data = allocate_memory(stat_result.st_size + 1);
@@ -154,7 +154,7 @@ static Json_Buffer *read_file(char *file_path)
     buffer->data[stat_result.st_size] = 0; // null terminate
     buffer->i = 0;
     fclose(file);
-    // END_TIMED_BLOCK(Timer_parse_read);
+    END_TIMED_BLOCK(Timer_parse_read);
     return buffer;
 }
 

@@ -64,7 +64,7 @@ static float write_haversine_json(char *file_path, int seed, int pairs_count)
         float haversine = haversine_of_degrees(v[0], v[1], v[2], v[3], EARTH_RADIUS_KM);
         average += haversine / (float)pairs_count;
     }
-    fprintf(file, "    ],\n    \"average\":%f\n}\n", average);
+    fprintf(file, "    ],\n    \"average\":%f,\n    \"pairs_count\":%d\n}\n", average, pairs_count);
     fclose(file);
     return average;
 }
