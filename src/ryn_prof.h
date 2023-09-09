@@ -1,7 +1,11 @@
 /*
-ryn_prof v0.01 - A simple, recursive profiler. https://github.com/vitreousoul/ryn
+ryn_prof v0.02 - A simple, recursive profiler. https://github.com/vitreousoul/ryn
 
 Written while following the "Performance-Aware Programming Series" at https://www.computerenhance.com/
+
+Version Log:
+    v0.02 Add memory bandwidth measurement, remove numeric typedefs
+    v0.01 Initial version
 
 License:
     Permission to use, copy, modify, and/or distribute this software for
