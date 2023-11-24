@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 
 DEBUG=1
-SOURCE_FILES="src/haversine_process.c"
+# SOURCE_FILES="src/haversine_process.c"
+SOURCE_FILES="src/repitition_testing.c"
 SETTINGS="-std=c99 -Wall -Wextra -Wstrict-prototypes -Wold-style-definition -Wmissing-prototypes -Wmissing-declarations -Wno-comment"
 OUTPUT_DIR="dist"
 
@@ -14,7 +15,7 @@ if [ $DEBUG -eq 0 ]; then
     TARGET="-O2 -o $OUTPUT_DIR/haversine.exe"
 elif [ $DEBUG -eq 1 ]; then
     echo "Debug build";
-    TARGET="-g3 -O0 -o $OUTPUT_DIR/haversine.out"
+    TARGET="-g -O1 -o $OUTPUT_DIR/haversine.out"
 fi
 
 echo $TARGET
