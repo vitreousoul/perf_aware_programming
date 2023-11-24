@@ -3,8 +3,11 @@
 #include <sys/stat.h>
 #include <string.h>
 
+typedef uint8_t u8;
 typedef uint32_t u32;
 typedef uint64_t u64;
+
+typedef int32_t s32;
 
 #include "ryn_prof.h"
 
@@ -51,6 +54,8 @@ static void test_read_file(char *file_path)
     FILE *file = fopen(file_path, "rb");
     buffer->data = allocate_memory(stat_result.st_size + 1);
 
+    printf("File size %lld bytes\n", stat_result.st_size);
+
     /* time the fread call */
     while(os_elapsed < os_wait_time)
     {
@@ -60,7 +65,10 @@ static void test_read_file(char *file_path)
         if (run_time < minimum_runtime)
         {
             minimum_runtime = run_time;
-            printf("%llu %llu\n", minimum_runtime, os_elapsed);
+            float seconds_elapsed = (float)minimum_runtime / (float)cpu_freq;
+            float bytes_per_second = stat_result.st_size / seconds_elapsed;
+            float gigabytes_per_second = bytes_per_second / 1000000000.0f;
+            printf("cyles: %llu  (%f GB/second)\n", minimum_runtime, gigabytes_per_second);
             os_elapsed = 0;
             os_start_time = ReadOSTimer();
         }
@@ -75,8 +83,42 @@ static void test_read_file(char *file_path)
     fclose(file);
 }
 
+typedef struct
+{
+    u64 Size;
+    u8 *Data;
+} buffer;
+
+static void TestWritingToBuffer(buffer *Buffer)
+{
+    for (u64 I = 0; I < Buffer->Size; I++)
+    {
+        Buffer->Data[I] = I;
+    }
+}
+
+#define BUFFER_SIZE 20000
+
+typedef enum
+{
+    timed_block_Main,
+} timed_block;
+
 int main(void)
 {
-    test_read_file("./dist/haversine.json");
+    buffer *Buffer = malloc(sizeof(buffer) + BUFFER_SIZE);
+    Buffer->Size = BUFFER_SIZE;
+    Buffer->Data = (u8 *)(Buffer + 1);
+
+    BeginProfile();
+    BEGIN_TIMED_BLOCK(timed_block_Main);
+
+    TestWritingToBuffer(Buffer);
+
+    END_TIMED_BLOCK(timed_block_Main);
+    EndAndPrintProfile();
+    printf("buffer size %llu\n", Buffer->Size);
+
+    /* test_read_file("./dist/haversine.json"); */
     return 0;
 }
