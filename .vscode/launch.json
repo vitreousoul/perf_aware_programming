@@ -14,7 +14,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/dist/haversine.out",
-            "args": ["process"],
+            "args": [""],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],

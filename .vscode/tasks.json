@@ -7,10 +7,11 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
-                "${workspaceFolder}/src/haversine_process.c",
+                "-O1",
+                "${workspaceFolder}/src/repitition_testing.c",
                 "-o",
                 "${workspaceFolder}/dist/haversine.out",
-                "-std=c89",
+                "-std=c99",
                 "-Wall",
                 "-Wextra",
                 "-Wstrict-prototypes",
