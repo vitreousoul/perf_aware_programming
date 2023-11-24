@@ -6,3 +6,6 @@ tmp/
 *.out
 dist/
 *.dSYM/
+
+*.o
+*.obj
