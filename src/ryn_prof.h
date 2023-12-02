@@ -206,6 +206,11 @@ void BeginProfile(void)
     GlobalProfiler.StartTime = ReadCPUTimer();
 }
 
+void EndProfile(void)
+{
+    GlobalProfiler.EndTime = ReadCPUTimer();
+}
+
 void EndAndPrintProfile(void)
 {
     GlobalProfiler.EndTime = ReadCPUTimer();
@@ -246,6 +251,11 @@ static profiler GlobalProfiler;
 void BeginProfile(void)
 {
     GlobalProfiler.StartTime = ReadCPUTimer();
+}
+
+void EndProfile(void)
+{
+    GlobalProfiler.EndTime = ReadCPUTimer();
 }
 
 void EndAndPrintProfile()
