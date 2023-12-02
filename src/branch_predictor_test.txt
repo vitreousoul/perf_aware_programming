@@ -1,0 +1,74 @@
+I've been writing tests in an attempt to measure branch-predictor overhead. This style of programming/testing is new to me, so I wanted to get your opinion on the methodology.
+
+The tests use two assembly functions that take a boolean argument (in the rdi register for my arch), and returns one of two values. The only difference between the functions is whether it compares rdi with 0 or 1.
+
+```
+JumpIf0:
+    cmp rdi, 0
+    je Is0
+    mov rax, 13
+    ret
+Is0:
+    mov rax, 84
+    ret
+
+JumpIf1:
+    cmp rdi, 1
+    je Is1
+    mov rax, 13
+    ret
+Is1:
+    mov rax, 84
+    ret
+```
+
+I profiled the JumpIfX functions by looping through a buffer of boolean values, passing each value to JumpIfX.
+
+```
+#define BufferSize 256
+global_variable Result[BufferSize];
+
+void TestBranchPredictor0(buffer Buffer)
+{
+    BeginProfile();
+
+    for (int I = 0; I < Buffer.Size; ++I)
+    {
+        Results[I] = JumpIf0(Buffer.Data[I]);
+    }
+
+    EndProfile();
+}
+```
+
+I ended up using the buffer to codify the branching pattern so that the profiled loop could stay exactly the same. Also, it made debugging easier at the start.
+
+Buffers with all zeroes and all ones were used to measure the slow/fast paths, while also trying to reduce and pressure on the branch-predictor. These two tests are trying to measure the fastest/slowest runtimes with as little branch-predictor overhead as possible.
+
+All other buffers contained the same amount of zeroes and ones, so that the only runtime differences would hopefully be from the branch-predictor.
+
+Here are some minimum cycle-counts measured during repition testing of `TestBranchPredictorX`:
+
+JumpIf0
+  {0000..0000}: 581
+  {1111..1111}: 471
+  {0101..0101}: 582
+  {1010..1010}: 581
+  {0..01..1}: 536
+  {1..10..0}: 540
+
+JumpIf1
+  {0000..0000}: 471
+  {1111..1111}: 582
+  {0101..0101}: 581
+  {1010..1010}: 581
+  {0..01..1}: 538
+  {1..10..0}: 536
+
+The all-0 and all-1 results feel like a good sanity check.
+
+It also seems to make sense that the alternating buffers {0101..0101} and {1010..1010} would take the longest. That is, assuming that the constant switching puts more pressure on the branch-predictor.
+
+The average between all-0 and all-1 is 526, and the half-and-half buffers {0..01..1} and {1..10..0} take slightly longer, which seems to be the slight overhead at the transition.
+
+Am I actually observing branch-predictor overhead, or could these timings be caused by something else?
